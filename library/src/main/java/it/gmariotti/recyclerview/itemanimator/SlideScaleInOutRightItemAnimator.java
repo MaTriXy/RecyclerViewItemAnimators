@@ -1,6 +1,6 @@
 /*
  * ******************************************************************************
- *   Copyright (c) 2014 Gabriele Mariotti.
+ *   Copyright (c) 2014-2015 Gabriele Mariotti.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@
 package it.gmariotti.recyclerview.itemanimator;
 
 import android.support.v4.view.ViewCompat;
+import android.support.v4.view.ViewPropertyAnimatorCompat;
 import android.support.v7.widget.RecyclerView;
 import android.view.View;
 
@@ -47,82 +48,87 @@ public class SlideScaleInOutRightItemAnimator extends BaseItemAnimator {
     protected void animateRemoveImpl(final RecyclerView.ViewHolder holder) {
         final View view = holder.itemView;
 
-        ViewCompat.animate(view).cancel();
-        ViewCompat.animate(view).setDuration(getRemoveDuration()).
-                scaleX(mEndScaleX).scaleY(mEndScaleY).
-                translationX(+mRecyclerView.getWidth()).setListener(new VpaListenerAdapter() {
-            @Override
-            public void onAnimationEnd(View view) {
-                ViewCompat.setScaleX(view, mEndScaleX);
-                ViewCompat.setScaleY(view, mEndScaleY);
-                ViewCompat.setTranslationX(view, +mRecyclerView.getWidth());
-                dispatchRemoveFinished(holder);
-                mRemoveAnimations.remove(holder);
-                dispatchFinishedWhenDone();
-            }
-        }).start();
+        final ViewPropertyAnimatorCompat animation = ViewCompat.animate(view);
         mRemoveAnimations.add(holder);
+        animation.setDuration(getRemoveDuration())
+                .scaleX(0)
+                .scaleY(0)
+                .alpha(0)
+                .translationX(+mRecyclerView.getLayoutManager().getWidth())
+                .setListener(new VpaListenerAdapter() {
+
+                    @Override
+                    public void onAnimationStart(View view) {
+                        dispatchRemoveStarting(holder);
+                    }
+
+                    @Override
+                    public void onAnimationEnd(View view) {
+                        animation.setListener(null);
+                        ViewCompat.setAlpha(view, 1);
+                        ViewCompat.setScaleX(view, 0);
+                        ViewCompat.setScaleY(view, 0);
+                        ViewCompat.setTranslationX(view, +mRecyclerView.getLayoutManager().getWidth());
+                        dispatchRemoveFinished(holder);
+                        mRemoveAnimations.remove(holder);
+                        dispatchFinishedWhenDone();
+                    }
+                }).start();
+
     }
 
     @Override
     protected void prepareAnimateAdd(RecyclerView.ViewHolder holder) {
         retrieveOriginalScale(holder);
-        ViewCompat.setScaleX(holder.itemView, mInitialScaleX);
-        ViewCompat.setScaleY(holder.itemView, mInitialScaleY);
+        ViewCompat.setScaleX(holder.itemView, 0);
+        ViewCompat.setScaleY(holder.itemView,0);
 
-        ViewCompat.setTranslationX(holder.itemView, +mRecyclerView.getWidth());
+        ViewCompat.setTranslationX(holder.itemView, +mRecyclerView.getLayoutManager().getWidth());
     }
-
 
 
     protected void animateAddImpl(final RecyclerView.ViewHolder holder) {
         final View view = holder.itemView;
 
-        ViewCompat.animate(view).cancel();
-        ViewCompat.animate(view).scaleX(mOriginalScaleX).scaleY(mOriginalScaleY).translationX(0)
-                .setDuration(getAddDuration()).
-                setListener(new VpaListenerAdapter() {
+        final ViewPropertyAnimatorCompat animation = ViewCompat.animate(view);
+        mAddAnimations.add(holder);
+        animation.scaleX(1)
+                .scaleY(1)
+                .translationX(0)
+                .alpha(1)
+                .setDuration(getAddDuration())
+                .setListener(new VpaListenerAdapter() {
+                    @Override
+                    public void onAnimationStart(View view) {
+                        dispatchAddStarting(holder);
+                    }
+
                     @Override
                     public void onAnimationCancel(View view) {
+                        ViewCompat.setAlpha(view, 1);
                         ViewCompat.setTranslationX(view, 0);
-                        ViewCompat.setScaleX(view, mOriginalScaleX);
-                        ViewCompat.setScaleY(view, mOriginalScaleY);
+                        ViewCompat.setScaleX(view, 1);
+                        ViewCompat.setScaleY(view, 1);
                     }
 
                     @Override
                     public void onAnimationEnd(View view) {
+                        animation.setListener(null);
+                        ViewCompat.setAlpha(view, 1);
+                        ViewCompat.setTranslationX(view, 0);
+                        ViewCompat.setScaleX(view, 1);
+                        ViewCompat.setScaleY(view, 1);
                         dispatchAddFinished(holder);
                         mAddAnimations.remove(holder);
                         dispatchFinishedWhenDone();
                     }
                 }).start();
-        mAddAnimations.add(holder);
-    }
 
-    public void setInitialScale(float scaleXY){
-       setInitialScale(scaleXY, scaleXY);
-    }
-
-    public void setInitialScale(float scaleX, float scaleY){
-        mInitialScaleX = scaleX;
-        mInitialScaleY = scaleY;
-
-        mEndScaleX = scaleX;
-        mEndScaleY = scaleY;
-    }
-
-    public void setEndScale(float scaleXY){
-        setEndScale(scaleXY, scaleXY);
-    }
-
-    public void setEndScale(float scaleX, float scaleY){
-        mEndScaleX = scaleX;
-        mEndScaleY = scaleY;
     }
 
     private void retrieveOriginalScale(RecyclerView.ViewHolder holder) {
-        mOriginalScaleX = holder.itemView.getScaleX();
-        mOriginalScaleY = holder.itemView.getScaleY();
+        mOriginalScaleX = ViewCompat.getScaleX(holder.itemView);
+        mOriginalScaleY = ViewCompat.getScaleY(holder.itemView);
     }
 
 }
